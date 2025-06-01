@@ -52,6 +52,7 @@ def receive_data():
   global RECORDING_FLAG
 
   data = request.get_json()
+  print("📥 Incoming Data:", data) 
   if not data:
     return jsonify({"Error":"No Data Received"}), 400
   if not RECORDING_FLAG:
