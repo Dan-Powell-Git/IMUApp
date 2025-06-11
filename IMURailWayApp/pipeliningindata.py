@@ -50,7 +50,7 @@ def stop_recording():
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
 def receive_data():
   global RECORDING_FLAG
-
+  print(request.get_data())
   data = request.get_json()
   print("📥 Incoming Data:", data) 
   if not data:
