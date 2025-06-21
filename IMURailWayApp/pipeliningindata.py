@@ -30,13 +30,16 @@ def get_storage_client():
       creds = service_account.Credentials.from_service_account_info(creds_dict)
       return storage.Client(credentials=creds)
    else:
-      return EnvironmentError('COULD NOT FIND CREDENTIALS!')
+      raise EnvironmentError('COULD NOT FIND CREDENTIALS!')
 def upload_file(bucket_name, blob_name, local_path):
-  client = get_storage_client()
-  bucket = client.bucket(bucket_name)
-  blob = bucket.blob(blob_name)
-  blob.upload_from_filename(local_path)
-  return print(f'upload to {local_path} completed')
+  try:
+    client = get_storage_client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_name)
+    blob.upload_from_filename(local_path)
+    return print(f'upload to {local_path} completed')
+  except Exception as e:
+     raise EnvironmentError('Upload Failed!' , str(e))
 
 def download_file(bucket_name, blob_name, local_path):
    client = get_storage_client()
@@ -51,7 +54,7 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     if not os.path.exists(IMU_CSV):
       return 'No CSV detected'
     df = pd.read_csv(IMU_CSV)
-    if df.empty():
+    if df.empty:
       return 'CSV is empty'
     conn = sqlite3.connect(local_DB)
     df.to_sql('imu_data', conn, if_exists='append', index=False)
@@ -59,8 +62,9 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     conn.close()
 
     #upload file with updates back to GCS
+    print('Attempting to upload...')
     upload_file(bucket_name, blob_name, local_DB)
-
+    print('Uploaded to GCS')
     #remove local files
     os.remove(IMU_CSV)
     os.remove(local_DB)
