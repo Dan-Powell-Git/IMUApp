@@ -112,22 +112,20 @@ def receive_data():
     print('Not Recording')
     return jsonify({'status': 'not recording'}), 200 
   try:
-    #get variables from json data
-    timestamp = datetime.utcnow().isoformat()
-    ax = data.get("ax")
-    ay = data.get("ay")
-    az = data.get("az")
-    gx = data.get("gx")
-    gy = data.get("gy")
-    gz = data.get("gz") 
-
-    with open(IMU_CSV, mode='a', newline='') as file: #append the new line
-      writer = csv.writer(file)
-      writer.writerow([SESSION_ID, timestamp, ax, ay, az, gx, gy, gz])
-    return jsonify({'status':'success'}),200
+        with open(IMU_CSV, mode='a', newline='') as file:
+            writer = csv.writer(file)
+            for row in data:  # loop through each dictionary in the list
+                timestamp = datetime.utcnow().isoformat()
+                ax = row.get("ax")
+                ay = row.get("ay")
+                az = row.get("az")
+                gx = row.get("gx")
+                gy = row.get("gy")
+                gz = row.get("gz")
+                writer.writerow([timestamp, ax, ay, az, gx, gy, gz])
+        return jsonify({'status': 'success'}), 200
   except Exception as E:
-    print('Error', str(E))
-    return jsonify({'Error': str(E)}), 500
+      return jsonify({'Error': str(E)}), 500
 
 @app.route('/flush', methods=['POST'])
 def flush():
