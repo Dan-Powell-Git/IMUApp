@@ -30,7 +30,7 @@ def get_storage_client():
       creds = service_account.Credentials.from_service_account_info(creds_dict)
       return storage.Client(credentials=creds)
    else:
-      return 'COULD NOT FIND CREDENTIALS!'
+      return EnvironmentError('COULD NOT FIND CREDENTIALS!')
 def upload_file(bucket_name, blob_name, local_path):
   client = get_storage_client()
   bucket = client.bucket(bucket_name)
@@ -122,7 +122,7 @@ def receive_data():
                 gx = row.get("gx")
                 gy = row.get("gy")
                 gz = row.get("gz")
-                writer.writerow([timestamp, ax, ay, az, gx, gy, gz])
+                writer.writerow([SESSION_ID, timestamp, ax, ay, az, gx, gy, gz])
         return jsonify({'status': 'success'}), 200
   except Exception as E:
       return jsonify({'Error': str(E)}), 500
