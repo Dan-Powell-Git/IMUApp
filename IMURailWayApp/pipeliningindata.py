@@ -25,6 +25,7 @@ if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
 def get_storage_client():
    if 'GOOGLE_APP_CREDS_JSON' in os.environ:
       creds_json = os.environ['GOOGLE_APP_CREDS_JSON']
+      print('Found Creds!')
       creds_dict = json.loads(creds_json)
       creds = service_account.Credentials.from_service_account_info(creds_dict)
       return storage.Client(credentials=creds)
