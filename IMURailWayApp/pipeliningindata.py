@@ -3,24 +3,24 @@ from flask import Flask, request, jsonify
 from datetime import datetime
 import csv
 import os
-import threading, time 
 import json
 import pandas as pd
 import sqlite3
+from uuid import uuid4
 from google.cloud import storage
 from google.oauth2 import service_account
 
 PORT = int(os.environ.get("PORT", 500))
 
 app = Flask(__name__)
-
+SESSION_ID = None
 IMU_CSV = "imu_data_log.csv"
 RECORDING_FLAG = False
 
 if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
   with open(IMU_CSV, mode='w', newline='') as file:
     writer = csv.writer(file)
-    writer.writerow(["timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
+    writer.writerow(['session_id', "timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
 
 def get_storage_client():
    if 'GOOGLE_APP_CREDS_JSON' in os.environ:
@@ -35,14 +35,14 @@ def upload_file(bucket_name, blob_name, local_path):
   bucket = client.bucket(bucket_name)
   blob = bucket.blob(blob_name)
   blob.upload_from_filename(local_path)
-  print(f'upload to {local_path} completed')
+  return print(f'upload to {local_path} completed')
 
 def download_file(bucket_name, blob_name, local_path):
    client = get_storage_client()
    bucket = client.bucket(bucket_name)
    blob = bucket.blob(blob_name)
    blob.download_to_filename(local_path)
-   print('Downloaded GCS file')
+   return print('Downloaded GCS file')
 def flush_csv_to_sqlite(bucket_name, blob_name):
   local_DB = 'imu_data.db'
   try:
@@ -67,15 +67,7 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     return f'Flushed, uploaded {len(df)} records to GCS'
   except Exception as e:
       return f"Flush failed: {str(e)}"  
-def auto_flush(interval_secs, bucket, blob):
-  def flush_loop():
-    while True:
-      time.sleep(interval_secs)
-      print('Autoflush triggered')
-      msg = flush_csv_to_sqlite(bucket, blob)
-      print(msg)
-  thread = threading.Thread(target=flush_loop, daemon=True)
-  thread.start()
+
         
 @app.route("/")
 def index():
@@ -91,9 +83,10 @@ def index():
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
-    global RECORDING_FLAG
+    global RECORDING_FLAG, SESSION_ID
     RECORDING_FLAG = True
-    return jsonify({'status': 'recording started'}), 200
+    SESSION_ID = datetime.utcnow().isoformat()
+    return jsonify({'status': 'recording started', 'session_id': SESSION_ID}), 200
   
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
@@ -103,7 +96,7 @@ def stop_recording():
     bucket = 'imu_data_bucket'
     blob = 'imu_data.db'
     msg = flush_csv_to_sqlite(bucket, blob)
-    print('Stopped flush')
+    print('Stopped flush', msg)
     return jsonify({'status': 'recording stopped and flushed'}), 200
 
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
@@ -129,7 +122,7 @@ def receive_data():
 
     with open(IMU_CSV, mode='a', newline='') as file: #append the new line
       writer = csv.writer(file)
-      writer.writerow([timestamp, ax, ay, az, gx, gy, gz])
+      writer.writerow([SESSION_ID, timestamp, ax, ay, az, gx, gy, gz])
     return jsonify({'status':'success'}),200
   except Exception as E:
     jsonify({'Error': str(E)}), 500
@@ -144,5 +137,5 @@ def flush():
 if __name__ == "__main__":
   bucket = 'imu_data_bucket'
   blob = 'imu_data.db'
-  auto_flush(50, bucket, blob)
+
   app.run(host="0.0.0.0", port=PORT, debug=True)
