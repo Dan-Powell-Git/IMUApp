@@ -126,6 +126,7 @@ def receive_data():
       writer.writerow([SESSION_ID, timestamp, ax, ay, az, gx, gy, gz])
     return jsonify({'status':'success'}),200
   except Exception as E:
+    print('Error', str(E))
     return jsonify({'Error': str(E)}), 500
 
 @app.route('/flush', methods=['POST'])
