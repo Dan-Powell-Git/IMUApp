@@ -30,7 +30,7 @@ def get_storage_client():
       creds = service_account.Credentials.from_service_account_info(creds_dict)
       return storage.Client(credentials=creds)
    else:
-      return storage.Client()
+      return 'COULD NOT FIND CREDENTIALS!'
 def upload_file(bucket_name, blob_name, local_path):
   client = get_storage_client()
   bucket = client.bucket(bucket_name)
