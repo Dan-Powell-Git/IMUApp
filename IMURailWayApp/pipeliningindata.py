@@ -119,7 +119,7 @@ def receive_data():
         with open(IMU_CSV, mode='a', newline='') as file:
             writer = csv.writer(file)
             for row in data:  # loop through each dictionary in the list
-                timestamp = datetime.utcnow().isoformat()
+                timestamp = row.get('timestamp')
                 ax = row.get("ax")
                 ay = row.get("ay")
                 az = row.get("az")
