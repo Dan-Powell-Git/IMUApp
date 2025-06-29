@@ -56,6 +56,7 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     df = pd.read_csv(IMU_CSV)
     if df.empty:
       return 'CSV is empty'
+    print("Raw columns in CSV:", df.columns.tolist())
     conn = sqlite3.connect(local_DB)
     df.to_sql('imu_data', conn, if_exists='append', index=False)
     conn.commit()
@@ -107,7 +108,7 @@ def stop_recording():
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
 def receive_data():
   global RECORDING_FLAG
-  print(request.get_data())
+  #print(request.get_data())
   data = request.get_json()
   print("Incoming Data:", data) 
   if not data:
