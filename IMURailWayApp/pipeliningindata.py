@@ -69,6 +69,10 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     #remove local files
     os.remove(IMU_CSV)
     os.remove(local_DB)
+    if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
+      with open(IMU_CSV, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['session_id', "timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
 
     return f'Flushed, uploaded {len(df)} records to GCS'
   except Exception as e:
@@ -92,10 +96,6 @@ def start_recording():
     global RECORDING_FLAG, SESSION_ID
     RECORDING_FLAG = True
     SESSION_ID = datetime.utcnow().isoformat()
-    if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
-      with open(IMU_CSV, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['session_id', "timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
     return jsonify({'status': 'recording started', 'session_id': SESSION_ID}), 200
   
 @app.route('/stop_recording', methods=['POST'])
