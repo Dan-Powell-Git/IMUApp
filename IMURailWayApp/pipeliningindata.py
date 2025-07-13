@@ -30,7 +30,7 @@ def check_if_csv_exists():
       writer.writerow(expected_header)
       return
   try:
-     with open(IMU_CSV, mode='w', newline='') as file:
+     with open(IMU_CSV, mode='r', newline='') as file:
         reader = csv.reader(file)
         header = next(reader)
         if header != expected_header:
@@ -99,7 +99,6 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
       return f"Flush failed: {str(e)}"  
 
 def background_writer():
-
   data_batch = None
   while True:
     try:
@@ -107,6 +106,7 @@ def background_writer():
         if data_batch is None:
           break
         check_if_csv_exists()
+        print(f"Writing {len(data_batch)} records to CSV")
         with open(IMU_CSV, mode='a', newline='') as file:
           writer = csv.writer(file)
           for row in data_batch:
@@ -119,6 +119,13 @@ def background_writer():
                 row.get("gx"),
                 row.get("gy"),
                 row.get("gz")])
+        try:
+          df = pd.read_csv(IMU_CSV, usecols=['timestamp'])  # Load only one column to reduce memory use
+          csv_length = len(df)
+          print(f'Wrote {len(data_batch)} records to CSV. Total sie of csv is now {csv_length}')
+        except Exception as e:
+            csv_length = "unknown"
+            print("Error reading CSV for size check:", e)
     except Exception as e:
         print("Error in background writer", e)
 writer_thread = threading.Thread(target=background_writer, daemon= True)
@@ -142,6 +149,8 @@ def index():
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
     global RECORDING_FLAG, SESSION_ID
+    if RECORDING_FLAG == True:
+      return('Already recording...')
     RECORDING_FLAG = True
     SESSION_ID = datetime.utcnow().isoformat()
     return jsonify({'status': 'recording started', 'session_id': SESSION_ID}), 200
@@ -149,7 +158,12 @@ def start_recording():
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
     global RECORDING_FLAG
+    if RECORDING_FLAG == False:
+      print("already not recording.")
     RECORDING_FLAG = False
+    print('Waiting for queue to empty')
+    while not DATA_QUEUE.empty():
+       time.sleep(0.1)
 
     bucket = 'imu_data_bucket'
     blob = 'imu_data.db'
