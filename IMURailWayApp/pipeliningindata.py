@@ -5,6 +5,9 @@ import csv
 import os
 import json
 import pandas as pd
+import threading
+import queue
+import time
 import sqlite3
 from uuid import uuid4
 from google.cloud import storage
@@ -16,11 +19,30 @@ app = Flask(__name__)
 SESSION_ID = None
 IMU_CSV = "imu_data_log.csv"
 RECORDING_FLAG = False
+DATA_QUEUE = queue.Queue()
 
-if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
-  with open(IMU_CSV, mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow(['session_id', "timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
+def check_if_csv_exists():
+  expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz']
+  if not os.path.exists(IMU_CSV):
+    print('No csv path detected, creating one now...')
+    with open(IMU_CSV, mode='w', newline='') as file:
+      writer = csv.writer(file)
+      writer.writerow(expected_header)
+      return
+  try:
+     with open(IMU_CSV, mode='w', newline='') as file:
+        reader = csv.reader(file)
+        header = next(reader)
+        if header != expected_header:
+           print('CSV header is mismatched, recreating csv')
+           raise ValueError('Header Mismatch')
+  except Exception:
+        with open(IMU_CSV, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(expected_header)
+        print("CSV recreated with correct header")
+
+
 
 def get_storage_client():
    if 'GOOGLE_APP_CREDS_JSON' in os.environ:
@@ -51,6 +73,7 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
   local_DB = 'imu_data.db'
   try:
     download_file(bucket_name, blob_name, local_DB)
+    check_if_csv_exists()
     if not os.path.exists(IMU_CSV):
       return 'No CSV detected'
     df = pd.read_csv(IMU_CSV)
@@ -69,15 +92,40 @@ def flush_csv_to_sqlite(bucket_name, blob_name):
     #remove local files
     os.remove(IMU_CSV)
     os.remove(local_DB)
-    if not os.path.exists(IMU_CSV): #if the file for the csv does not exist
-      with open(IMU_CSV, mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['session_id', "timestamp", "ax", "ay", "az", "gx", "gy", "gz"])
+    check_if_csv_exists()
 
     return f'Flushed, uploaded {len(df)} records to GCS'
   except Exception as e:
       return f"Flush failed: {str(e)}"  
 
+def background_writer():
+
+  data_batch = None
+  while True:
+    try:
+        data_batch = DATA_QUEUE.get()
+        if data_batch is None:
+          break
+        check_if_csv_exists()
+        with open(IMU_CSV, mode='a', newline='') as file:
+          writer = csv.writer(file)
+          for row in data_batch:
+              writer.writerow([
+                SESSION_ID,
+                row.get('timestamp'),
+                row.get("ax"),
+                row.get("ay"),
+                row.get("az"),
+                row.get("gx"),
+                row.get("gy"),
+                row.get("gz")])
+    except Exception as e:
+        print("Error in background writer", e)
+writer_thread = threading.Thread(target=background_writer, daemon= True)
+writer_thread.start()
+      
+
+check_if_csv_exists()
         
 @app.route("/")
 def index():
@@ -114,27 +162,19 @@ def receive_data():
   global RECORDING_FLAG
   #print(request.get_data())
   data = request.get_json()
-  print("Incoming Data:", data) 
+  print(f"Incoming Data with {len(data)} records") 
   if not data:
     return jsonify({"Error":"No Data Received"}), 400
+  if not isinstance(data, list):
+     return jsonify({'Error': f'Data must be list of records\n Data:\n{data}'}, 400)
   if not RECORDING_FLAG:
     print('Not Recording')
-    return jsonify({'status': 'not recording'}), 200 
+    return jsonify({'status': 'queued'}), 200 
   try:
-        with open(IMU_CSV, mode='a', newline='') as file:
-            writer = csv.writer(file)
-            for row in data:  # loop through each dictionary in the list
-                timestamp = row.get('timestamp')
-                ax = row.get("ax")
-                ay = row.get("ay")
-                az = row.get("az")
-                gx = row.get("gx")
-                gy = row.get("gy")
-                gz = row.get("gz")
-                writer.writerow([SESSION_ID, timestamp, ax, ay, az, gx, gy, gz])
-        return jsonify({'status': 'success'}), 200
+    DATA_QUEUE.put(data)
+    return jsonify({'status': 'success'}), 200
   except Exception as E:
-      return jsonify({'Error': str(E)}), 500
+    return jsonify({'Error': str(E)}), 500
 
 @app.route('/flush', methods=['POST'])
 def flush():
