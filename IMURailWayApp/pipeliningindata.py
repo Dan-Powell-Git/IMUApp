@@ -22,7 +22,7 @@ RECORDING_FLAG = False
 DATA_QUEUE = queue.Queue()
 
 def check_if_csv_exists():
-  expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz']
+  expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'batch_receive_time']
   if not os.path.exists(IMU_CSV):
     print('No csv path detected, creating one now...')
     with open(IMU_CSV, mode='w', newline='') as file:
@@ -118,7 +118,8 @@ def background_writer():
                 row.get("az"),
                 row.get("gx"),
                 row.get("gy"),
-                row.get("gz")])
+                row.get("gz"),
+                row.get('batch_receive_time')])
         try:
           df = pd.read_csv(IMU_CSV, usecols=['timestamp'])  # Load only one column to reduce memory use
           csv_length = len(df)
@@ -185,6 +186,9 @@ def receive_data():
     print('Not Recording')
     return jsonify({'status': 'queued'}), 200 
   try:
+    batch_receive_time = datetime.now().isoformat(timespec='milliseconds')
+    for record in data:
+       record['batch_receive_time'] =  batch_receive_time
     DATA_QUEUE.put(data)
     return jsonify({'status': 'success'}), 200
   except Exception as E:
