@@ -1,5 +1,5 @@
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 import csv
 import os
@@ -20,6 +20,7 @@ SESSION_ID = None
 IMU_CSV = "imu_data_log.csv"
 RECORDING_FLAG = False
 DATA_QUEUE = queue.Queue()
+RECORD_COUNT = 0
 
 def check_if_csv_exists():
   expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'batch_receive_time']
@@ -137,15 +138,7 @@ check_if_csv_exists()
         
 @app.route("/")
 def index():
-    return '''
-    <html>
-      <body>
-        <h2>IMU Control Panel</h2>
-        <form action="/start_recording" method="post"><button>Start</button></form>
-        <form action="/stop_recording" method="post"><button>Stop</button></form>
-      </body>
-    </html>
-    '''
+    return render_template('index.html')
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
@@ -153,7 +146,7 @@ def start_recording():
     if RECORDING_FLAG == True:
       return('Already recording...')
     RECORDING_FLAG = True
-    SESSION_ID = datetime.utcnow().isoformat()
+    SESSION_ID = datetime.now().isoformat()
     return jsonify({'status': 'recording started', 'session_id': SESSION_ID}), 200
   
 @app.route('/stop_recording', methods=['POST'])
@@ -190,7 +183,7 @@ def receive_data():
     for record in data:
        record['batch_receive_time'] =  batch_receive_time
     DATA_QUEUE.put(data)
-    return jsonify({'status': 'success'}), 200
+    return jsonify({'status': 'success', 'count': RECORD_COUNT}), 200
   except Exception as E:
     return jsonify({'Error': str(E)}), 500
 
@@ -206,3 +199,6 @@ if __name__ == "__main__":
   blob = 'imu_data.db'
 
   app.run(host="0.0.0.0", port=PORT, debug=True)
+@app.route('/record_count')
+def get_record_count():
+    return jsonify({'count': RECORD_COUNT})
