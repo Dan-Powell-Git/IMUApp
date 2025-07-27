@@ -43,8 +43,6 @@ def check_if_csv_exists():
             writer.writerow(expected_header)
         print("CSV recreated with correct header")
 
-
-
 def get_storage_client():
    if 'GOOGLE_APP_CREDS_JSON' in os.environ:
       creds_json = os.environ['GOOGLE_APP_CREDS_JSON']
@@ -154,16 +152,27 @@ def stop_recording():
     global RECORDING_FLAG
     if RECORDING_FLAG == False:
       print("already not recording.")
-    RECORDING_FLAG = False
+      return jsonify({'status': 'notRecording'}), 200
+    
     print('Waiting for queue to empty')
     while not DATA_QUEUE.empty():
-       time.sleep(0.1)
+      time.sleep(0.1)
 
     bucket = 'imu_data_bucket'
     blob = 'imu_data.db'
-    msg = flush_csv_to_sqlite(bucket, blob)
+    try:
+      msg = flush_csv_to_sqlite(bucket, blob)
+      print('Message from flush_csv_to_sqlite', msg)
+    except:
+       return jsonify({'status': 'Failed', 'message': 'Could not connect to Google Cloud'}), 500
     print('Stopped flush', msg)
-    return jsonify({'status': 'recording stopped and flushed'}), 200
+    if 'Flushed, uploaded' in msg:
+       RECORDING_FLAG = False
+       return jsonify({'status': 'recording stopped and flushed'}), 200
+    else:
+       print('sent failed message')
+       return jsonify({'status': 'Failed', 'message': msg}), 500
+       
 
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
 def receive_data():
@@ -192,13 +201,15 @@ def flush():
   bucket = 'imu_data_bucket'
   blob = 'imu_data.db'
   msg = flush_csv_to_sqlite(bucket, blob)
-  return (jsonify({'status': msg}))
+  return (jsonify({'status': msg})), 500
  
+@app.route('/record_count')
+def get_record_count():
+    return jsonify({'count': RECORD_COUNT})
+
 if __name__ == "__main__":
   bucket = 'imu_data_bucket'
   blob = 'imu_data.db'
 
   app.run(host="0.0.0.0", port=PORT, debug=True)
-@app.route('/record_count')
-def get_record_count():
-    return jsonify({'count': RECORD_COUNT})
+
