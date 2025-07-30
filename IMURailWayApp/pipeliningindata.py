@@ -172,7 +172,13 @@ def stop_recording():
     else:
        print('sent failed message')
        return jsonify({'status': 'Failed', 'message': msg}), 500
-       
+@app.route('/cancelRecording', methods=['GET'])
+def cancelRecording():
+   global RECORDING_FLAG, SESSION_ID
+   SESSION_ID = None
+   RECORDING_FLAG = False
+   
+   return jsonify({'status', 'Successfully Cancelled'}), 200
 
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
 def receive_data():

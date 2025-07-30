@@ -3,11 +3,21 @@
 {% block title %}IMU Control Panel{% endblock %}
 
 {% block content %}
+<style>
+        #start_button {
+            display: inline-block; 
+        }
+        #stop_button, #restart_button, #recordCounter, #cancelButton {
+            display: none; /* Hide these elements by default */
+        }
+    </style>
 
     <body>
     <h2>IMU Control Panel</h2>
     <button id = 'start_button'>Start</button>
     <button id = 'stop_button'>Stop</button>
+    <button id = 'restart_button'>Restart</button>
+    <button id = 'cancelButton'>Cancel</button>
     <p id="statusMsg"></p>
     <p id="recordCounter" style="font-weight: bold; margin-top: 1em;"></p>
     </body>
