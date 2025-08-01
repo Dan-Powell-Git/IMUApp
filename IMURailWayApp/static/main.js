@@ -39,6 +39,7 @@ document.addEventListener("DOMContentLoaded", function(){
             statusMsg.textContent = 'Recording Stopped'
             startButton.style.display = 'inline-block'
             stop_button.style.display = 'none'
+            cancelButton.style.display = 'none'
             if(restartButton) restartButton.style.display = 'none'
             recordCounter.style.display = 'none'
             recording = false
