@@ -22,6 +22,17 @@ RECORDING_FLAG = False
 DATA_QUEUE = queue.Queue()
 RECORD_COUNT = 0
 
+def delete_csv_session():
+  try:
+    if not os.path.exists(IMU_CSV):
+        return jsonify({'message':'noCSV'}), 200
+    else:
+        os.remove(IMU_CSV)
+        return jsonify({'message':'found and deleted'}), 200
+  except Exception as e:
+     print('Error deleting file:'. str(e))
+     return jsonify({'message':'error', 'error': str(e) }), 500
+
 def check_if_csv_exists():
   expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'batch_receive_time']
   if not os.path.exists(IMU_CSV):
@@ -122,7 +133,7 @@ def background_writer():
         try:
           df = pd.read_csv(IMU_CSV, usecols=['timestamp'])  # Load only one column to reduce memory use
           csv_length = len(df)
-          print(f'Wrote {len(data_batch)} records to CSV. Total sie of csv is now {csv_length}')
+          print(f'Wrote {len(data_batch)} records to CSV. Total size of csv is now {csv_length}')
         except Exception as e:
             csv_length = "unknown"
             print("Error reading CSV for size check:", e)
@@ -172,13 +183,13 @@ def stop_recording():
     else:
        print('sent failed message')
        return jsonify({'status': 'Failed', 'message': msg}), 500
-@app.route('/cancelRecording', methods=['GET'])
+@app.route('/cancelRecording', methods=['POST'])
 def cancelRecording():
    global RECORDING_FLAG, SESSION_ID
    SESSION_ID = None
    RECORDING_FLAG = False
-   
-   return jsonify({'status', 'Successfully Cancelled'}), 200
+   msg = delete_csv_session()
+   return msg
 
 @app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
 def receive_data():

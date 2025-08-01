@@ -14,7 +14,6 @@ document.addEventListener("DOMContentLoaded", function(){
     
     async function startRecordingProcess(){
         const res = await fetch('/start_recording', {method:'POST'})
-        // why no check to make sure status of 200?
         recording = true;
         statusMsg.textContent = 'Recording Started'
         startButton.style.display = 'none'
@@ -27,8 +26,8 @@ document.addEventListener("DOMContentLoaded", function(){
 
         pollinterval = setInterval( async() =>{
             const recRes = await fetch('/record_count');
-            const recJson = await resRes.json();
-            recordCounter.textContent = `Records Received: ${json.count}`
+            const recJson = await recRes.json();
+            recordCounter.textContent = `Records Received: ${recJson.count}`
         }, 30000)
     }
     async function stopRecordingProcess() {
@@ -58,9 +57,21 @@ document.addEventListener("DOMContentLoaded", function(){
     }
     async function cancelRecordingProcess(){
         if (confirm('Are you sure you want to cancel the recording process')){
-            
-        }
-    }
+            cancelReq = await fetch('/cancelRecording', {method: 'POST'});
+            const cancelJson = await cancelReq.json();
+            if (cancelReq.status === 200){
+                statusMsg.textContent = 'Recording Cancelled'
+                startButton.style.display = 'inline-block'
+                stop_button.style.display = 'none'
+                restartButton.style.display = 'none'
+                recordCounter.style.display = 'none'
+                cancelButton.style.display = 'none'
+                recording = false 
+            }
+            else{
+                alert("Error Encountered when cancelling. Please refresh page.\n", cancelJson.error)
+            }
+    }}
 
     if (startButton){
         startButton.addEventListener('click', startRecordingProcess)
@@ -83,6 +94,9 @@ document.addEventListener("DOMContentLoaded", function(){
                 statusMsg.textContent =  "Failed to restart recording"
             }
         })
+    }
+    if (cancelButton){
+        cancelButton.addEventListener('click', cancelRecordingProcess)
     }
 
 })
