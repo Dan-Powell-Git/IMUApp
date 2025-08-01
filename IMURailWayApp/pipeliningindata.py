@@ -222,6 +222,7 @@ def flush():
  
 @app.route('/record_count')
 def get_record_count():
+    RECORD_COUNT = len(pd.read_csv(IMU_CSV))
     return jsonify({'count': RECORD_COUNT})
 
 if __name__ == "__main__":
