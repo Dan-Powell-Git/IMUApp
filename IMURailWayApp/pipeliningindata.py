@@ -216,7 +216,8 @@ def receive_data():
     return jsonify({'status': 'queued'}), 200 
   try:
     batch_receive_time = datetime.now().isoformat(timespec='milliseconds')
-    if FIRST_BATCH is None:
+    if type(FIRST_BATCH) == None:
+       print('Assigned First batch to ', FIRST_BATCH)
        FIRST_BATCH = batch_receive_time
     for record in data:
        record['batch_receive_time'] =  batch_receive_time
