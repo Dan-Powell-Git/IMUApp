@@ -190,11 +190,17 @@ def cancelRecording():
    msg = delete_csv_session()
    return msg
 
-@app.route('/imu_data', methods = ["POST"]) #Post imu data endpoint
+@app.route('/imu_data', methods = ["POST", "GET"]) #Post imu data endpoint
 def receive_data():
   global RECORDING_FLAG
   #print(request.get_data())
-  data = request.get_json()
+  try:
+    data = request.get_json()
+  except Exception as e:
+     print('Error when receiving data: ', str(e))
+  if data is None:
+    print("Received malformed or empty data:")
+    print(request.data)
   print(f"Incoming Data with {len(data)} records") 
   if not data:
     return jsonify({"Error":"No Data Received"}), 400
