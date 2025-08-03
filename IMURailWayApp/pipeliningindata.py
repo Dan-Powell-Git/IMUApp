@@ -20,6 +20,7 @@ SESSION_ID = None
 IMU_CSV = "imu_data_log.csv"
 RECORDING_FLAG = False
 DATA_QUEUE = queue.Queue()
+FIRST_BATCH = None
 RECORD_COUNT = 0
 
 def delete_csv_session():
@@ -34,7 +35,7 @@ def delete_csv_session():
      return jsonify({'message':'error', 'error': str(e) }), 500
 
 def check_if_csv_exists():
-  expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'batch_receive_time']
+  expected_header = ['session_id', 'timestamp', 'ax', 'ay', 'az', 'gx', 'gy', 'gz', 'batch_receive_time', 'first_batch']
   if not os.path.exists(IMU_CSV):
     print('No csv path detected, creating one now...')
     with open(IMU_CSV, mode='w', newline='') as file:
@@ -128,7 +129,8 @@ def background_writer():
                 row.get("gx"),
                 row.get("gy"),
                 row.get("gz"),
-                row.get('batch_receive_time')])
+                row.get('batch_receive_time'),
+                row.get('first_batch')])
         try:
           df = pd.read_csv(IMU_CSV, usecols=['timestamp'])  # Load only one column to reduce memory use
           csv_length = len(df)
@@ -151,6 +153,7 @@ def index():
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
     global RECORDING_FLAG, SESSION_ID
+    FIRST_BATCH = None
     if RECORDING_FLAG == True:
       return('Already recording...')
     RECORDING_FLAG = True
@@ -160,6 +163,7 @@ def start_recording():
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
     global RECORDING_FLAG
+    FIRST_BATCH = None
     if RECORDING_FLAG == False:
       print("already not recording.")
       return jsonify({'status': 'notRecording'}), 200
@@ -187,6 +191,7 @@ def cancelRecording():
    global RECORDING_FLAG, SESSION_ID
    SESSION_ID = None
    RECORDING_FLAG = False
+   FIRST_BATCH = None
    msg = delete_csv_session()
    return msg
 
@@ -211,8 +216,11 @@ def receive_data():
     return jsonify({'status': 'queued'}), 200 
   try:
     batch_receive_time = datetime.now().isoformat(timespec='milliseconds')
+    if FIRST_BATCH is None:
+       FIRST_BATCH = batch_receive_time
     for record in data:
        record['batch_receive_time'] =  batch_receive_time
+       record['first_batch'] = FIRST_BATCH
     DATA_QUEUE.put(data)
     return jsonify({'status': 'success', 'count': RECORD_COUNT}), 200
   except Exception as E:
