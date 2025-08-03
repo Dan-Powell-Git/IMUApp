@@ -163,7 +163,6 @@ def start_recording():
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
     global RECORDING_FLAG, FIRST_BATCH
-    FIRST_BATCH = ''
     if RECORDING_FLAG == False:
       print("already not recording.")
       return jsonify({'status': 'notRecording'}), 200
