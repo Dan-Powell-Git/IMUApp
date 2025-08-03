@@ -20,7 +20,7 @@ SESSION_ID = None
 IMU_CSV = "imu_data_log.csv"
 RECORDING_FLAG = False
 DATA_QUEUE = queue.Queue()
-FIRST_BATCH = None
+FIRST_BATCH = ''
 RECORD_COUNT = 0
 
 def delete_csv_session():
@@ -152,8 +152,8 @@ def index():
 
 @app.route('/start_recording', methods=['POST'])
 def start_recording():
-    global RECORDING_FLAG, SESSION_ID
-    FIRST_BATCH = None
+    global RECORDING_FLAG, SESSION_ID, FIRST_BATCH
+    FIRST_BATCH = ''
     if RECORDING_FLAG == True:
       return('Already recording...')
     RECORDING_FLAG = True
@@ -162,8 +162,8 @@ def start_recording():
   
 @app.route('/stop_recording', methods=['POST'])
 def stop_recording():
-    global RECORDING_FLAG
-    FIRST_BATCH = None
+    global RECORDING_FLAG, FIRST_BATCH
+    FIRST_BATCH = ''
     if RECORDING_FLAG == False:
       print("already not recording.")
       return jsonify({'status': 'notRecording'}), 200
@@ -188,16 +188,16 @@ def stop_recording():
        return jsonify({'status': 'Failed', 'message': msg}), 500
 @app.route('/cancelRecording', methods=['POST'])
 def cancelRecording():
-   global RECORDING_FLAG, SESSION_ID
+   global RECORDING_FLAG, SESSION_ID, FIRST_BATCH
    SESSION_ID = None
    RECORDING_FLAG = False
-   FIRST_BATCH = None
+   FIRST_BATCH = ''
    msg = delete_csv_session()
    return msg
 
 @app.route('/imu_data', methods = ["POST", "GET"]) #Post imu data endpoint
 def receive_data():
-  global RECORDING_FLAG
+  global RECORDING_FLAG, FIRST_BATCH
   #print(request.get_data())
   try:
     data = request.get_json()
@@ -216,7 +216,7 @@ def receive_data():
     return jsonify({'status': 'queued'}), 200 
   try:
     batch_receive_time = datetime.now().isoformat(timespec='milliseconds')
-    if type(FIRST_BATCH) == None:
+    if FIRST_BATCH == '':
        print('Assigned First batch to ', FIRST_BATCH)
        FIRST_BATCH = batch_receive_time
     for record in data:
