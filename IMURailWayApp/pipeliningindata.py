@@ -13,7 +13,7 @@ from uuid import uuid4
 from google.cloud import storage
 from google.oauth2 import service_account
 
-PORT = int(os.environ.get("PORT", 500))
+PORT = int(os.environ.get("PORT", 5000))
 
 app = Flask(__name__)
 SESSION_ID = None
@@ -230,8 +230,12 @@ def receive_data():
 def flush():
   bucket = 'imu_data_bucket'
   blob = 'imu_data.db'
-  msg = flush_csv_to_sqlite(bucket, blob)
-  return (jsonify({'status': msg})), 500
+  try:
+    msg = flush_csv_to_sqlite(bucket, blob)
+    return (jsonify({'status': msg})), 200
+  except Exception as e:
+    msg = "Error occured:" + msg 
+    return (jsonify({'status': msg})), 500
  
 @app.route('/record_count')
 def get_record_count():
